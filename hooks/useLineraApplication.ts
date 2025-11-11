@@ -99,7 +99,7 @@ export function useApplication(appId: string): UseApplicationReturn {
     return () => {
       cancelled = true;
     };
-  }, [appId, getApplication, isInitialized]);
+  }, [appId, getApplication, isInitialized, canWrite]); // Re-load when canWrite changes
 
   const query = useCallback(async <T = unknown>(gql: string): Promise<T> => {
     if (!app) {

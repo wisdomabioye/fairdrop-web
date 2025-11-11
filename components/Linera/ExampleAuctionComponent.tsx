@@ -29,6 +29,7 @@ export function ExampleAuctionComponent({ applicationId }: { applicationId: stri
   const [balance, setBalance] = useState<string | null>(null);
   const [bidAmount, setBidAmount] = useState('');
   const [error, setError] = useState<Error | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Fetch balance when client is ready
   useEffect(() => {
@@ -59,7 +60,7 @@ export function ExampleAuctionComponent({ applicationId }: { applicationId: stri
       try {
         // GraphQL query format for Linera
         const result = await query<AuctionState>(
-          '{ "query": "query { quantitySold status }" }'
+          '{ "query": "query { quantitySold status parameters { startTimestamp startPrice floorPrice  } }" }'
         );
 
         console.log('result', result)
@@ -92,29 +93,65 @@ export function ExampleAuctionComponent({ applicationId }: { applicationId: stri
   const handlePlaceBid = async () => {
     if (!bidAmount) return;
 
-    // Prompt wallet connection if not connected
-    if (!canWrite) {
-      try {
-        await connect();
-        return;
-      } catch (err) {
-        console.error('Failed to connect wallet:', err);
-        alert('Please connect your wallet to place a bid');
-        return;
-      }
-    }
-
     try {
-      // Use GraphQL mutation to place bid
-      await mutate(
-        `{ "query": "mutation { placeBid(amount: \\"${bidAmount}\\") { success } }" }`
-      );
+      // Prompt wallet connection if not connected
+      if (!canWrite) {
+        setIsConnecting(true);
+        try {
+          await connect();
 
-      // Refresh auction state after bid
-      const result = await query<AuctionState>(
-        '{ "query": "query { auctionState { currentPrice startPrice floorPrice quantity sold } }" }'
+          // Wait for wallet connection and app reload
+          // After connection, useApplication will reload the app with new permissions
+          let attempts = 0;
+          const maxAttempts = 30; // 3 seconds max
+
+          while (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Get fresh app instance to check if it has write permissions
+            const { getLineraClientManager } = await import('@/lib/linera/client-manager');
+            const clientManager = getLineraClientManager();
+
+            if (clientManager?.canWrite()) {
+              // Client manager is ready, get a fresh app instance
+              const freshApp = await clientManager.getApplication(applicationId);
+              if (freshApp) {
+                // Try to mutate with the fresh app instance
+                console.log('Wallet connected, proceeding with bid...');
+
+                const mutationResult = await freshApp.mutate(
+                  `{ "query": "mutation { placeBid(quantity: ${Number(bidAmount)} ) }" }`
+                );
+                console.log('mutationResult', mutationResult);
+
+                // Refresh balance
+                if (client) {
+                  const bal = await client.balance();
+                  setBalance(bal);
+                }
+
+                setBidAmount('');
+                setIsConnecting(false);
+                alert('Bid placed successfully!');
+                return;
+              }
+            }
+
+            attempts++;
+          }
+
+          throw new Error('Wallet connection timeout - please try again');
+        } catch (err) {
+          setIsConnecting(false);
+          throw err;
+        }
+      }
+
+      // If already connected, use the regular mutate
+      const mutationResult = await mutate(
+        `{ "query": "mutation { placeBid(quantity: ${Number(bidAmount)} ) }" }`
       );
-      setAuctionState(result);
+      console.log('mutationResult', mutationResult);
 
       // Refresh balance
       if (client) {
@@ -127,47 +164,48 @@ export function ExampleAuctionComponent({ applicationId }: { applicationId: stri
     } catch (err) {
       console.error('Failed to place bid:', err);
       alert(`Bid failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setIsConnecting(false);
     }
   };
 
   if (!isInitialized || isLoading) {
     return (
-      <div className="p-4 border rounded">
-        <p>Loading Linera client...</p>
+      <div className="p-4 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900">
+        <p className="text-gray-900 dark:text-gray-100">Loading Linera client...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 border border-red-500 rounded bg-red-50">
-        <p className="text-red-700">Error: {error.message}</p>
+      <div className="p-4 border border-red-500 dark:border-red-700 rounded bg-red-50 dark:bg-red-950">
+        <p className="text-red-700 dark:text-red-300">Error: {error.message}</p>
       </div>
     );
   }
 
   if (!isReady) {
     return (
-      <div className="p-4 border rounded">
-        <p>Loading application...</p>
+      <div className="p-4 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900">
+        <p className="text-gray-900 dark:text-gray-100">Loading application...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 border rounded-lg space-y-4">
-      <h2 className="text-2xl font-bold">Fairdrop Auction</h2>
+    <div className="p-6 border border-gray-300 dark:border-gray-700 rounded-lg space-y-4 bg-white dark:bg-gray-900">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Fairdrop Auction</h2>
 
       {/* Connection Status */}
-      <div className="p-4 bg-gray-50 rounded">
-        <h3 className="font-semibold mb-2">Connection Info</h3>
-        <div className="space-y-1 text-sm">
+      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+        <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Connection Info</h3>
+        <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
           <p>
             <span className="font-medium">Status:</span>{' '}
             {isConnected ? (
-              <span className="text-green-600">✓ Wallet Connected</span>
+              <span className="text-green-600 dark:text-green-400">✓ Wallet Connected</span>
             ) : (
-              <span className="text-yellow-600">Read-Only Mode</span>
+              <span className="text-yellow-600 dark:text-yellow-400">Read-Only Mode</span>
             )}
           </p>
           {walletAddress && (
@@ -188,9 +226,9 @@ export function ExampleAuctionComponent({ applicationId }: { applicationId: stri
 
       {/* Auction State */}
       {auctionState && (
-        <div className="p-4 bg-blue-50 rounded">
-          <h3 className="font-semibold mb-2">Auction State</h3>
-          <div className="space-y-1 text-sm">
+        <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+          <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Auction State</h3>
+          <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
             <p>
               <span className="font-medium">Current Price:</span> {auctionState.currentPrice}
             </p>
@@ -211,31 +249,37 @@ export function ExampleAuctionComponent({ applicationId }: { applicationId: stri
       {/* Bidding Interface */}
       <div className="space-y-2">
         <label className="block">
-          <span className="font-medium">Bid Amount:</span>
+          <span className="font-medium text-gray-900 dark:text-gray-100">Bid Amount:</span>
           <input
             type="text"
             value={bidAmount}
             onChange={(e) => setBidAmount(e.target.value)}
             placeholder="Enter amount"
-            className="mt-1 block w-full px-3 py-2 border rounded"
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+            disabled={isConnecting}
           />
         </label>
         <button
           onClick={handlePlaceBid}
-          disabled={!bidAmount}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
+          disabled={!bidAmount || isConnecting}
+          className="px-4 py-2 bg-blue-500 dark:bg-blue-600 text-white rounded hover:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-500 disabled:cursor-not-allowed"
         >
-          {canWrite ? 'Place Bid' : 'Connect Wallet to Bid'}
+          {isConnecting ? 'Connecting Wallet...' : canWrite ? 'Place Bid' : 'Connect Wallet to Bid'}
         </button>
-        {!canWrite && (
-          <p className="text-xs text-gray-600">
-            You need to connect your wallet to place bids
+        {!canWrite && !isConnecting && (
+          <p className="text-xs text-gray-600 dark:text-gray-400">
+            Clicking Place Bid will connect your wallet and place the bid
+          </p>
+        )}
+        {isConnecting && (
+          <p className="text-xs text-blue-600 dark:text-blue-400">
+            Connecting wallet and placing bid...
           </p>
         )}
       </div>
 
       {/* Application ID */}
-      <div className="text-xs text-gray-500">
+      <div className="text-xs text-gray-500 dark:text-gray-400">
         <p>Application ID: {applicationId}</p>
       </div>
     </div>

@@ -1,6 +1,8 @@
 
 ### FAIRDROP DEVELOPMENT & IMPLEMENTATION GUIDE (Linera Blockchain)
 
+## [Actively in Development]
+
 The [Fairdrop Smart Contract Repository is available here](https://github.com/wisdomabioye/fairdrop-smart-contract)
 
 ---
