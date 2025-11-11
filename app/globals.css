@@ -1,26 +1,218 @@
 @import "tailwindcss";
 
-:root {
+/* Fairdrop Color Scheme - Energetic & Vibrant Palette */
+:root,
+[data-theme="light"] {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0a0118;
+  --card: #fafbff;
+  --card-foreground: #0a0118;
+
+  /* Electric gradient: Vivid purple to electric cyan */
+  --primary: #a855f7;
+  --primary-foreground: #ffffff;
+  --secondary: #06b6d4;
+  --secondary-foreground: #ffffff;
+  --accent: #f97316;
+  --accent-foreground: #ffffff;
+
+  --text-primary: #0a0118;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
+
+  --success: #22c55e;
+  --warning: #eab308;
+  --error: #ef4444;
+  --info: #3b82f6;
+
+  --glass: rgba(168, 85, 247, 0.05);
+  --border: rgba(168, 85, 247, 0.15);
+  --ring: #a855f7;
+}
+
+[data-theme="dark"] {
+  --background: #0a0118;
+  --foreground: #fafafa;
+  --card: #1a0f2e;
+  --card-foreground: #fafafa;
+
+  /* Neon gradient: Electric purple to luminous cyan */
+  --primary: #c084fc;
+  --primary-foreground: #ffffff;
+  --secondary: #22d3ee;
+  --secondary-foreground: #0a0118;
+  --accent: #fb923c;
+  --accent-foreground: #ffffff;
+
+  --text-primary: #fafafa;
+  --text-secondary: #d4d4d8;
+  --text-muted: #a1a1aa;
+
+  --success: #4ade80;
+  --warning: #facc15;
+  --error: #f87171;
+  --info: #60a5fa;
+
+  --glass: rgba(192, 132, 252, 0.1);
+  --border: rgba(192, 132, 252, 0.2);
+  --ring: #c084fc;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+
+  --color-glass: var(--glass);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Animations */
+  --animate-glow: glow 2s ease-in-out infinite;
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-pulse-slow: pulse-slow 3s ease-in-out infinite;
+
+  @keyframes glow {
+    0%, 100% {
+      box-shadow: 0 0 5px var(--primary), 0 0 10px var(--primary);
+    }
+    50% {
+      box-shadow: 0 0 15px var(--primary), 0 0 25px var(--primary);
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes pulse-slow {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes progressShimmer {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Utility Classes */
+@utility glassmorphism {
+  @apply bg-glass backdrop-blur-lg border border-white/10 rounded-xl;
+}
+
+@utility glow-effect {
+  @apply animate-glow;
+}
+
+@utility hover-grow {
+  @apply hover:shadow-[0_0_15px_rgba(143,0,255,0.5)] hover:scale-[1.01];
+}
+
+@utility cosmic-card {
+  @apply relative overflow-hidden glassmorphism transition-all duration-300;
+}
+
+@utility space-bg {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse at top, rgba(143, 0, 255, 0.15), transparent),
+    radial-gradient(ellipse at bottom, rgba(0, 191, 255, 0.15), transparent);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* Component-specific styles */
+@layer components {
+  .stage-progress {
+    @apply bg-gradient-to-r from-primary via-secondary to-primary bg-[length:200%_100%];
+    animation: progressShimmer 3s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+}
+
+/* Base styles */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  *,
+  ::after,
+  ::before {
+    border-color: var(--border);
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --background: #0a0118;
+    --foreground: #fafafa;
+    --card: #1a0f2e;
+    --card-foreground: #fafafa;
+
+    --primary: #c084fc;
+    --secondary: #22d3ee;
+    --accent: #fb923c;
+
+    --text-primary: #fafafa;
+    --text-secondary: #d4d4d8;
+    --text-muted: #a1a1aa;
+
+    --glass: rgba(192, 132, 252, 0.1);
+    --border: rgba(192, 132, 252, 0.2);
+  }
 }
