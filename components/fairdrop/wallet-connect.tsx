@@ -20,6 +20,8 @@ export function WalletConnect({ onConnect, onDisconnect }: WalletConnectProps) {
     disconnect,
   } = useWalletConnection();
 
+  const [isDisconnecting, setIsDisconnecting] = React.useState(false);
+
   // Call callbacks when connection state changes
   React.useEffect(() => {
     if (isConnected && address) {
@@ -42,8 +44,41 @@ export function WalletConnect({ onConnect, onDisconnect }: WalletConnectProps) {
   };
 
   const handleDisconnect = async () => {
-    await disconnect();
-    onDisconnect?.();
+    setIsDisconnecting(true);
+    try {
+      await disconnect();
+
+      // Wait for state to actually update
+      // Poll isConnected until it becomes false
+      let attempts = 0;
+      const maxAttempts = 30; // 3 seconds max
+
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Check client manager state directly to see if disconnection is complete
+        const { getLineraClientManager } = await import('@/lib/linera/client-manager');
+        const clientManager = getLineraClientManager();
+
+        if (clientManager && !clientManager.canWrite()) {
+          // Successfully disconnected
+          console.log('Wallet disconnected successfully');
+          onDisconnect?.();
+          break;
+        }
+
+        attempts++;
+      }
+
+      if (attempts >= maxAttempts) {
+        console.warn('Disconnect state update timeout - state may be stale');
+        onDisconnect?.();
+      }
+    } catch (err) {
+      console.error("Failed to disconnect:", err);
+    } finally {
+      setIsDisconnecting(false);
+    }
   };
 
   const formatAddress = (addr: string) => {
@@ -57,8 +92,14 @@ export function WalletConnect({ onConnect, onDisconnect }: WalletConnectProps) {
           <span className="w-2 h-2 bg-success rounded-full inline-block mr-2 animate-pulse" />
           {formatAddress(address)}
         </div>
-        <Button variant="ghost" size="sm" onClick={handleDisconnect}>
-          Disconnect
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDisconnect}
+          disabled={isDisconnecting}
+          isLoading={isDisconnecting}
+        >
+          {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
         </Button>
       </div>
     );
