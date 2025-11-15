@@ -13,7 +13,7 @@ export default function Home() {
         <section className="py-16">
           <div className="container mx-auto px-4">
             <ExampleAuctionComponent 
-              applicationId="3a80183910f9a35ec33731a024574138e0f3a1bda29d006668f1917cba761506"
+              applicationId="5aacbb4335112bf4826eee8f16b07bf3be578e7cc9146042dad0b6fc68d68c46"
             />
           </div>
         </section>

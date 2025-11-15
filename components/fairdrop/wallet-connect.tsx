@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { useWalletConnection, getLineraClientManager } from "linera-react-client";
 
 interface WalletConnectProps {
   onConnect?: (address: string) => void;
@@ -57,7 +57,6 @@ export function WalletConnect({ onConnect, onDisconnect }: WalletConnectProps) {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         // Check client manager state directly to see if disconnection is complete
-        const { getLineraClientManager } = await import('@/lib/linera/client-manager');
         const clientManager = getLineraClientManager();
 
         if (clientManager && !clientManager.canWrite()) {

@@ -11,10 +11,10 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@linera/client": "^0.15.5",
-    "@metamask/providers": "^22.1.1",
-    "ethers": "^6.15.0",
-    "next": "16.0.1",
+    "@apollo/client": "^4.0.9",
+    "graphql-ws": "^6.0.6",
+    "linera-react-client": "file:../linera-react-client/linera-react-client-1.0.1.tgz",
+    "next": "16.0.2",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },

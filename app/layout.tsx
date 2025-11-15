@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AppLineraProvider } from "@/components/providers/linera";
 import "./globals.css";
-import { LineraProvider } from "@/components/providers/linera-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,9 +28,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <LineraProvider faucetUrl="https://faucet.testnet-conway.linera.net">
+        <AppLineraProvider>
           {children}
-        </LineraProvider>
+        </AppLineraProvider>
       </body>
     </html>
   );

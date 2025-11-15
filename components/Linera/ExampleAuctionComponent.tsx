@@ -8,9 +8,12 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useLineraClient } from '@/hooks/useLineraClient';
-import { useApplication } from '@/hooks/useLineraApplication';
-import { useWalletConnection } from '@/hooks/useWalletConnection';
+import { 
+  getLineraClientManager, 
+  useLineraClient, 
+  useLineraApplication, 
+  useWalletConnection 
+} from 'linera-react-client';
 
 interface AuctionState {
   currentPrice: string;
@@ -20,23 +23,47 @@ interface AuctionState {
   sold: number;
 }
 
+interface ChainInfoData {
+  data: {
+    chainInfo: {
+      creatorChainId: string,
+      currentChainId: string,
+      hasState: boolean,
+    }
+  }
+}
+
 export function ExampleAuctionComponent({ applicationId }: { applicationId: string }) {
   const { client, isInitialized, walletAddress, chainId } = useLineraClient();
   const { connect, isConnected } = useWalletConnection();
-  const { query, mutate, isReady, canWrite, isLoading } = useApplication(applicationId);
+  const { query, mutate, isReady, canWrite, isLoading } = useLineraApplication(applicationId);
 
   const [auctionState, setAuctionState] = useState<AuctionState | null>(null);
   const [balance, setBalance] = useState<string | null>(null);
   const [bidAmount, setBidAmount] = useState('');
   const [error, setError] = useState<Error | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+
+  // Set up notification listener
+  useEffect(() => {
+    if (!client) return;
+
+    // Subscribe to notifications from the Linera client
+    client.onNotification((notification: unknown) => {
+      console.log('Linera notification received:', notification);
+      return 
+      // You can handle specific notification types here
+      // For example, trigger a UI update or refetch auction state
+      // when a notification is received
+    });
+
+  }, [client]);
 
   // Fetch balance when client is ready
   useEffect(() => {
-    console.log('client before:', client)
     if (!client) return;
 
-    console.log('client after', client)
     const fetchBalance = async () => {
       try {
         const bal = await client.balance();
@@ -50,23 +77,52 @@ export function ExampleAuctionComponent({ applicationId }: { applicationId: stri
     fetchBalance();
   }, [client]);
 
+  useEffect(() => {
+    if (!subscribed) {
+      const subscribeHandler = async () => {
+        try {
+         const chainInfoResult = await query<string>(
+            '{ "query": "query { chainInfo { currentChainId creatorChainId hasState  } }" }'
+          );
+          
+          const chainInfoData = JSON.parse(chainInfoResult) as ChainInfoData;
+          console.log('chainInfoResult', chainInfoResult);
+
+          if (!chainInfoData.data.chainInfo.hasState) {
+            const subscribe = await mutate(
+              `{ "query": "mutation { subscribe }" }`
+            );
+            console.log('subscription', subscribe);
+
+            const cachedAuctionStateResult = await query<string>(
+              '{ "query": "query { cachedAuctionState { owner startTimestamp status  } }" }'
+            );
+
+            console.log("cachedAuctionStateResult", cachedAuctionStateResult)
+            setSubscribed(true)
+          }
+        } catch (error) {
+          console.log("subscribeHandler", error)
+        }
+      }
+      subscribeHandler()
+    }
+  }, [subscribed, mutate, query])
+
   // Query auction state with polling
   useEffect(() => {
-    if (!isReady) return;
-
+    if (!isReady || !subscribed) return;
     let mounted = true;
-
     const queryAuctionState = async () => {
       try {
-        // GraphQL query format for Linera
-        const result = await query<AuctionState>(
-          '{ "query": "query { quantitySold status parameters { startTimestamp startPrice floorPrice  } }" }'
-        );
+        const cachedAuctionStateResult = await query<string>(
+            '{ "query": "query { cachedAuctionState { owner startTimestamp status  } }" }'
+          );
 
-        console.log('result', result)
-
+        console.log("cachedAuctionStateResult", cachedAuctionStateResult)
+        
         if (mounted) {
-          setAuctionState(result);
+          // setAuctionState(result);
           setError(null);
         }
       } catch (err) {
@@ -87,7 +143,7 @@ export function ExampleAuctionComponent({ applicationId }: { applicationId: stri
       mounted = false;
       clearInterval(interval);
     };
-  }, [isReady, query]);
+  }, [isReady, query, subscribed]);
 
   // Place a bid
   const handlePlaceBid = async () => {
@@ -109,7 +165,6 @@ export function ExampleAuctionComponent({ applicationId }: { applicationId: stri
             await new Promise(resolve => setTimeout(resolve, 100));
 
             // Get fresh app instance to check if it has write permissions
-            const { getLineraClientManager } = await import('@/lib/linera/client-manager');
             const clientManager = getLineraClientManager();
 
             if (clientManager?.canWrite()) {
@@ -176,13 +231,13 @@ export function ExampleAuctionComponent({ applicationId }: { applicationId: stri
     );
   }
 
-  if (error) {
+  /* if (error) {
     return (
       <div className="p-4 border border-red-500 dark:border-red-700 rounded bg-red-50 dark:bg-red-950">
         <p className="text-red-700 dark:text-red-300">Error: {error.message}</p>
       </div>
     );
-  }
+  } */
 
   if (!isReady) {
     return (
