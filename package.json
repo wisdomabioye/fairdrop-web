@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "mkdir -p public/linera && cp -r node_modules/@linera/client/dist/* public/linera/",
     "typings": "npx tsc --noEmit",
     "dev": "next dev",
     "build": "next build",
