@@ -1,12 +1,14 @@
 "use client"
 import { LineraProvider, LogLevel } from "linera-react-client";
+import { CosmicLoading } from "@/components/fairdrop/cosmic-loading";
 
 export function AppLineraProvider({ children }: {children: React.ReactNode}) {
 
   return (
-    <LineraProvider 
+    <LineraProvider
       faucetUrl="https://faucet.testnet-conway.linera.net"
-      readOnlyWallet={{ constantAddress: "d9aba42ee6d009c1192aecbd61da2229c5d631dfa402f0c35cdf071d2b63e312" }}
+      readOnlyWallet={{ constantAddress: "0x0000000000000000000000000000000000000000" }}
+      fallback={<CosmicLoading />}
       logging={{
         enabled: true,
         level: LogLevel.DEBUG

@@ -52,15 +52,15 @@ export function HeroSection() {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-8 pt-12 max-w-2xl mx-auto">
             <div className="space-y-1">
-              <div className="text-3xl md:text-4xl font-bold text-primary">$2.4M</div>
+              <div className="text-3xl md:text-4xl font-bold text-primary">$0.0M</div>
               <div className="text-sm text-text-secondary">Total Volume</div>
             </div>
             <div className="space-y-1">
-              <div className="text-3xl md:text-4xl font-bold text-secondary">1,247</div>
+              <div className="text-3xl md:text-4xl font-bold text-secondary">0</div>
               <div className="text-sm text-text-secondary">Auctions</div>
             </div>
             <div className="space-y-1">
-              <div className="text-3xl md:text-4xl font-bold text-success">8,934</div>
+              <div className="text-3xl md:text-4xl font-bold text-success">0</div>
               <div className="text-sm text-text-secondary">Participants</div>
             </div>
           </div>
