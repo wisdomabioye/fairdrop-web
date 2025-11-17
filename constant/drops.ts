@@ -9,7 +9,7 @@ export const AUCTION_DROPS = [
             startPrice: 100,
             floorPrice: 1,
             totalQuantity: 250000,
-            startTimestamp: 1762598125457000,
+            startTimestamp: 1762598125457,
             decrementRate: 1,
             decrementInterval: 600
         }
@@ -22,7 +22,7 @@ export const AUCTION_DROPS = [
             startPrice: 1000,
             floorPrice: 10,
             totalQuantity: 10000,
-            startTimestamp: 1762698125657000,
+            startTimestamp: 1762698125657,
             decrementRate: 1,
             decrementInterval: 6000
         }
@@ -35,7 +35,7 @@ export const AUCTION_DROPS = [
             startPrice: 1000,
             floorPrice: 100,
             totalQuantity: 99,
-            startTimestamp: 1762888125657000,
+            startTimestamp: 1762888125657,
             decrementRate: 10,
             decrementInterval: 60000
         }
