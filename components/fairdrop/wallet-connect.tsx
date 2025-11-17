@@ -3,6 +3,9 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { useWalletConnection, getLineraClientManager } from "linera-react-client";
+import { WalletSelectionDialog } from "./wallet-selection-dialog";
+import { SUPPORTED_WALLETS } from "@/constant/wallets";
+import { toast } from "sonner";
 
 interface WalletConnectProps {
   onConnect?: (address: string) => void;
@@ -11,7 +14,6 @@ interface WalletConnectProps {
 
 export function WalletConnect({ onConnect, onDisconnect }: WalletConnectProps) {
   const {
-    isMetaMaskInstalled,
     isConnected,
     isConnecting,
     address,
@@ -21,6 +23,7 @@ export function WalletConnect({ onConnect, onDisconnect }: WalletConnectProps) {
   } = useWalletConnection();
 
   const [isDisconnecting, setIsDisconnecting] = React.useState(false);
+  const [showWalletDialog, setShowWalletDialog] = React.useState(false);
 
   // Call callbacks when connection state changes
   React.useEffect(() => {
@@ -30,16 +33,32 @@ export function WalletConnect({ onConnect, onDisconnect }: WalletConnectProps) {
   }, [isConnected, address, onConnect]);
 
   const handleConnect = async () => {
-    // Check if MetaMask is installed
-    if (!isMetaMaskInstalled) {
-      window.open("https://metamask.io/download/", "_blank");
-      return;
-    }
+    setShowWalletDialog(true);
+  };
 
+  const handleWalletSelect = async (walletId: string) => {
     try {
-      await connect();
+      // Currently only MetaMask is supported by linera-react-client
+      // Future: Add support for other wallets here
+      if (walletId === 'metamask') {
+        await connect();
+        setShowWalletDialog(false);
+        toast.success('Wallet Connected', {
+          description: 'Your wallet has been successfully connected to Fairdrop.',
+        });
+      } else {
+        // For other wallets, show a message that they're coming soon
+        const wallet = SUPPORTED_WALLETS.find(w => w.id === walletId);
+        toast.info(`${wallet?.name || 'Wallet'} Coming Soon`, {
+          description: 'Support for this wallet is currently in development. Stay tuned!',
+        });
+      }
     } catch (err) {
       console.error("Failed to connect:", err);
+      toast.error('Connection Failed', {
+        description: err instanceof Error ? err.message : 'Failed to connect wallet. Please try again.',
+      });
+      throw err; // Re-throw to let the dialog handle it
     }
   };
 
@@ -62,6 +81,9 @@ export function WalletConnect({ onConnect, onDisconnect }: WalletConnectProps) {
         if (clientManager && !clientManager.canWrite()) {
           // Successfully disconnected
           console.log('Wallet disconnected successfully');
+          toast.success('Wallet Disconnected', {
+            description: 'Your wallet has been disconnected successfully.',
+          });
           onDisconnect?.();
           break;
         }
@@ -75,6 +97,9 @@ export function WalletConnect({ onConnect, onDisconnect }: WalletConnectProps) {
       }
     } catch (err) {
       console.error("Failed to disconnect:", err);
+      toast.error('Disconnect Failed', {
+        description: 'Failed to disconnect wallet. Please try again.',
+      });
     } finally {
       setIsDisconnecting(false);
     }
@@ -105,26 +130,31 @@ export function WalletConnect({ onConnect, onDisconnect }: WalletConnectProps) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-2">
-      <Button
-        variant="primary"
-        size="sm"
-        onClick={handleConnect}
-        isLoading={isConnecting}
-        disabled={isConnecting}
-      >
-        {isConnecting ? "Connecting..." : "Connect Wallet"}
-      </Button>
-      {connectionError && (
-        <p className="text-xs text-error max-w-xs text-right">
-          {connectionError.message}
-        </p>
-      )}
-      {!isMetaMaskInstalled && !isConnecting && (
-        <p className="text-xs text-text-secondary max-w-xs text-right">
-          MetaMask not detected. Click to install.
-        </p>
-      )}
-    </div>
+    <>
+      <div className="flex flex-col items-end gap-2">
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={handleConnect}
+          isLoading={isConnecting}
+          disabled={isConnecting}
+        >
+          {isConnecting ? "Connecting..." : "Connect Wallet"}
+        </Button>
+        {connectionError && (
+          <p className="text-xs text-error max-w-xs text-right">
+            {connectionError.message}
+          </p>
+        )}
+      </div>
+
+      <WalletSelectionDialog
+        open={showWalletDialog}
+        onClose={() => setShowWalletDialog(false)}
+        wallets={SUPPORTED_WALLETS}
+        onWalletSelect={handleWalletSelect}
+        isConnecting={isConnecting}
+      />
+    </>
   );
 }

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AppLineraProvider } from "@/components/providers/linera";
 import { Header } from "@/components/fairdrop/header";
 import { Footer } from "@/components/fairdrop/footer";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,6 +39,7 @@ export default function RootLayout({
             </main>
             <Footer />
           </div>
+          <Toaster />
         </AppLineraProvider>
       </body>
     </html>
