@@ -5,6 +5,7 @@ import { Roadmap } from "@/components/fairdrop/roadmap";
 import { Vision } from "@/components/fairdrop/vision";
 import { HowItWorks } from "@/components/fairdrop/how-it-works";
 import { AuctionCard } from "@/components/fairdrop/auction-card";
+import { AuctionCardCompact } from "@/components/fairdrop/auction-card-compact";
 import { AUCTION_DROPS } from "@/constant/drops";
 
 export default function Home() {
@@ -29,7 +30,7 @@ export default function Home() {
             <div className="grid grid-cols-1 min-[500px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {
                 AUCTION_DROPS.map((auctionData, index) => (
-                  <AuctionCard
+                  <AuctionCardCompact
                     key={auctionData.applicationId + index}
                     {...auctionData}
                   />
