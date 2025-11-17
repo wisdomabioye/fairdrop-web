@@ -30,6 +30,12 @@ export function Header() {
         {/* Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
           <Link
+            href="/auctions"
+            className="text-sm font-medium text-text-secondary hover:text-primary transition-colors"
+          >
+            Auctions
+          </Link>
+          <Link
             href="/create"
             className="text-sm font-medium text-text-secondary hover:text-primary transition-colors"
           >

@@ -2,6 +2,18 @@
   "name": "fairdrop",
   "version": "0.1.0",
   "private": true,
+  "keywords": [
+    "dutch-auction",
+    "linera-blockchain",
+    "fair-price-discovery",
+    "web3-marketplace",
+    "defi",
+    "nft-auction",
+    "token-sale",
+    "smart-contracts",
+    "nextjs",
+    "wasm"
+  ],
   "scripts": {
     "postinstall": "mkdir -p public/linera && cp -r node_modules/@linera/client/dist/* public/linera/",
     "typings": "npx tsc --noEmit",

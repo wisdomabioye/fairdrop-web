@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppLineraProvider } from "@/components/providers/linera";
+import { Header } from "@/components/fairdrop/header";
+import { Footer } from "@/components/fairdrop/footer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,7 +31,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AppLineraProvider>
-          {children}
+          <div className="min-h-screen space-bg flex flex-col">
+            <Header />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </div>
         </AppLineraProvider>
       </body>
     </html>

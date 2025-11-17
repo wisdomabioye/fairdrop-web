@@ -1,4 +1,3 @@
-import { Header } from "@/components/fairdrop/header";
 import { HeroSection } from "@/components/fairdrop/hero-section";
 import { ProblemSolution } from "@/components/fairdrop/problem-solution";
 import { Features } from "@/components/fairdrop/features";
@@ -10,9 +9,7 @@ import { AUCTION_DROPS } from "@/constant/drops";
 
 export default function Home() {
   return (
-    <div className="min-h-screen space-bg">
-      <Header />
-      <main>
+    <>
         <HeroSection />
 
         {/* Live Auctions */}
@@ -57,14 +54,6 @@ export default function Home() {
 
         {/* Vision */}
         <Vision />
-
-      </main>
-      <footer className="border-t border-border py-8 mt-20">
-        <div className="container mx-auto px-4 text-center text-text-secondary text-sm">
-          <p>© 2025 Fairdrop. Built on Linera Blockchain.</p>
-          <p className="mt-2">Transparent • Fair • Decentralized</p>
-        </div>
-      </footer>
-    </div>
+    </>
   );
 }
