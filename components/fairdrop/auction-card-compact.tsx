@@ -16,6 +16,44 @@ import {
   useWalletConnection
 } from 'linera-react-client';
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+interface AuctionInfo extends AuctionConfig {
+  // Data from smart contract, default to zero on initialization
+  quantitySold: number | null;
+  quantityRemaining: number | null;
+  currentPrice: number | null;
+  timeUntilNextDecrement: number | null;
+  /** default is 'active' */
+  status: 'active' | 'upcoming' | 'ended';
+}
+
+interface ChainInfo {
+  creatorChainId: string;
+  currentChainId: string;
+  hasState: boolean;
+}
+
+interface AuctionData {
+  chainInfo: ChainInfo;
+  auctionInfo: AuctionInfo | null;
+  quantityRemaining: number | null;
+  currentPrice: number | null;
+}
+
+interface EventNotification {
+  chain_id: string;
+  reason: {
+    BlockExecuted?: {
+      height: string;
+      hash: string;
+    };
+    NewBlock: {
+      height: string;
+      hash: string;
+    };
+  };
+}
 
 export interface AuctionCardCompactProps {
   applicationId: string;
@@ -38,13 +76,76 @@ export function AuctionCardCompact({
 }: AuctionCardCompactProps) {
   const { client, isInitialized } = useLineraClient();
   const { connect, isConnected } = useWalletConnection();
-  const { mutate, isReady, canWrite, isLoading } = useLineraApplication(applicationId);
+  const { query, mutate, isReady, canWrite, isLoading } = useLineraApplication(applicationId);
 
-  const [auctionState, setAuctionState] = useState(() => calculateAuctionState(config));
+  const [blockchainState, setBlockchainState] = useState<AuctionData | null>(null);
+  const [balance, setBalance] = useState<string | null>(null);
   const [bidAmount, setBidAmount] = useState('1');
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isBidding, setIsBidding] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
-  // Update auction state every second
+  const getAuctionData = async (blockHash?: string) => {
+    const chainInfoResult = await query<string>(
+      '{ "query": "query { chainInfo { currentChainId creatorChainId hasState  } quantityRemaining currentPrice }" }',
+      blockHash
+    );
+    console.log('chainInfoResult', chainInfoResult);
+    return JSON.parse(chainInfoResult) as AuctionData;
+  };
+
+  // Set up notification listener
+  useEffect(() => {
+    if (!client) return;
+
+    // Subscribe to notifications from the Linera client
+    client.onNotification((notification: EventNotification) => {
+      console.log('Linera notification received:', notification);
+      if (notification.reason) {
+        getAuctionData(notification.reason.BlockExecuted?.hash || notification.reason.NewBlock.hash);
+      } else {
+        console.log(notification.reason);
+      }
+    });
+  }, [client]);
+
+  // Fetch balance when client is ready
+  useEffect(() => {
+    if (!client) return;
+
+    const fetchBalance = async () => {
+      try {
+        const bal = await client.balance();
+        console.log('balance', bal);
+        setBalance(bal);
+      } catch (err) {
+        console.error('Failed to fetch balance:', err);
+      }
+    };
+
+    fetchBalance();
+  }, [client]);
+
+  // Query auction state
+  useEffect(() => {
+    if (!isReady) return;
+
+    const queryAuctionState = async () => {
+      try {
+        const data = await getAuctionData();
+        setBlockchainState(data);
+        setHasLoadedOnce(true);
+      } catch (err) {
+        console.error('Failed to query auction state:', err);
+      }
+    };
+
+    // Initial query
+    queryAuctionState();
+  }, [isReady]);
+
+  // Update auction state every second for calculated values
+  const [auctionState, setAuctionState] = useState(() => calculateAuctionState(config));
   useEffect(() => {
     const interval = setInterval(() => {
       setAuctionState(calculateAuctionState(config));
@@ -53,17 +154,23 @@ export function AuctionCardCompact({
     return () => clearInterval(interval);
   }, [config]);
 
+  // Calculate derived values from blockchain data with config fallback
+  const currentPrice = blockchainState?.currentPrice ?? auctionState.currentPrice;
+  const floorPrice = blockchainState?.auctionInfo?.floorPrice ?? config.floorPrice ?? 0;
+  const totalQuantity = blockchainState?.auctionInfo?.totalQuantity ?? config.totalQuantity ?? 0;
+  const soldQuantity = blockchainState?.auctionInfo?.quantitySold ?? 0;
+  const status = blockchainState?.auctionInfo?.status ?? auctionState.status;
+  const remaining = totalQuantity - soldQuantity;
+  const startTimestamp = blockchainState?.auctionInfo?.startTimestamp ?? config.startTimestamp;
+  const timeUntilNextDecrement = blockchainState?.auctionInfo?.timeUntilNextDecrement;
+
+  // Use calculated state for price decrease info
   const {
-    currentPrice,
     timeToFloorPrice,
     percentageDecreased,
-    status,
     isAtFloorPrice,
     nextPriceDropIn,
   } = auctionState;
-
-  const totalQuantity = config.totalQuantity || 0;
-  const remaining = totalQuantity; // In real app, subtract sold quantity
 
   // Place a bid
   const handlePlaceBid = async () => {
@@ -103,6 +210,12 @@ export function AuctionCardCompact({
                 );
                 console.log('mutationResult', mutationResult);
 
+                // Refresh balance
+                if (client) {
+                  const bal = await client.balance();
+                  setBalance(bal);
+                }
+
                 setBidAmount('1');
                 setIsConnecting(false);
                 toast.success('Bid Placed Successfully!', {
@@ -126,12 +239,20 @@ export function AuctionCardCompact({
       }
 
       // If already connected, use the regular mutate
+      setIsBidding(true);
       const mutationResult = await mutate(
         `{ "query": "mutation { placeBid(quantity: ${Number(bidAmount)} ) }" }`
       );
       console.log('mutationResult', mutationResult);
 
+      // Refresh balance
+      if (client) {
+        const bal = await client.balance();
+        setBalance(bal);
+      }
+
       setBidAmount('1');
+      setIsBidding(false);
       toast.success('Bid Placed Successfully!', {
         description: `Your bid for ${bidAmount} item(s) has been placed successfully.`,
       });
@@ -144,11 +265,12 @@ export function AuctionCardCompact({
         description: err instanceof Error ? err.message : 'An unknown error occurred. Please try again.',
       });
       setIsConnecting(false);
+      setIsBidding(false);
     }
   };
 
-  // Loading states
-  if (!isInitialized || isLoading) {
+  // Loading states - only show on initial load, not when wallet disconnects
+  if ((!isInitialized || isLoading) && !hasLoadedOnce) {
     return (
       <Card variant="cosmic" className={cn('overflow-hidden', className)}>
         <CardContent className="p-6 text-center">
@@ -158,7 +280,7 @@ export function AuctionCardCompact({
     );
   }
 
-  if (!isReady) {
+  if (!isReady && !hasLoadedOnce) {
     return (
       <Card variant="cosmic" className={cn('overflow-hidden', className)}>
         <CardContent className="p-6 text-center">
@@ -221,7 +343,7 @@ export function AuctionCardCompact({
           />
           <PriceIndicator
             label="Floor"
-            price={config.floorPrice || 0}
+            price={floorPrice}
             size="sm"
             variant="muted"
           />
@@ -264,10 +386,10 @@ export function AuctionCardCompact({
             </div>
           )}
 
-          {status === 'upcoming' && (
+          {status === 'upcoming' && startTimestamp && (
             <CountdownTimer
               label="Starts in"
-              targetTime={(config.startTimestamp || 0)}
+              targetTime={startTimestamp}
               compact={false}
               variant="warning"
               size="sm"
@@ -282,6 +404,14 @@ export function AuctionCardCompact({
             {remaining}/{totalQuantity}
           </span>
         </div>
+
+        {/* Balance - only show when connected */}
+        {isConnected && balance && (
+          <div className="text-xs text-text-secondary flex items-center justify-between py-1 px-2 rounded bg-glass/50">
+            <span>Balance:</span>
+            <span className="font-medium">{balance}</span>
+          </div>
+        )}
       </CardContent>
 
       {/* Compact Footer */}
@@ -296,7 +426,7 @@ export function AuctionCardCompact({
                 onChange={(e) => setBidAmount(e.target.value)}
                 placeholder="Qty"
                 className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-white/20 rounded-lg bg-glass backdrop-blur-sm text-text-primary placeholder-text-secondary focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                disabled={isConnecting}
+                disabled={isConnecting || isBidding}
                 min="1"
               />
               <Button
@@ -304,15 +434,24 @@ export function AuctionCardCompact({
                 size="sm"
                 className="px-3 shrink-0"
                 onClick={handlePlaceBid}
-                isLoading={isConnecting}
-                disabled={!bidAmount || remaining === 0 || isConnecting}
+                disabled={!bidAmount || remaining === 0 || isConnecting || isBidding}
               >
-                {isConnecting ? 'Wait...' : canWrite ? "Bid" : "Connect"}
+                {isConnecting ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    Connecting...
+                  </>
+                ) : isBidding ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    Bidding...
+                  </>
+                ) : canWrite ? "Bid" : "Connect"}
               </Button>
             </div>
 
             {/* Helper text */}
-            {!canWrite && !isConnecting && (
+            {!canWrite && !isConnecting && !isBidding && (
               <p className="text-xs text-text-secondary text-center leading-tight">
                 Will connect wallet
               </p>

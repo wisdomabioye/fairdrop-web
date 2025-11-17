@@ -1,6 +1,19 @@
 
 export const AUCTION_DROPS = [
     {
+        applicationId: "83873f804ed100a9a9ffc85c8dd6ff505b6d25f5f69dc4bbde1e8e4e15823ef4",
+        title: "Space Slot",
+        description: "Slot for LEO space travel",
+        imageUrl: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=800&h=600&fit=crop",
+        config: {
+            startPrice: 12000,
+            floorPrice: 999,
+            totalQuantity: 50,
+            startTimestamp: 1763390677004,
+            decrementRate: 9,
+            decrementInterval: 600000
+        }
+    }, {
         applicationId: "489e9f771f7b29cf2770bde0026c7e0dcf26f350991b7c011cb227bbf7bb6cf7",
         title: "Adron Arts",
         description: "Limited edition Arts",
@@ -39,18 +52,5 @@ export const AUCTION_DROPS = [
             decrementRate: 10,
             decrementInterval: 60000
         }
-    }, {
-        applicationId: "83873f804ed100a9a9ffc85c8dd6ff505b6d25f5f69dc4bbde1e8e4e15823ef4",
-        title: "Space Slot",
-        description: "Slot for LEO space travel",
-        imageUrl: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=800&h=600&fit=crop",
-        config: {
-            startPrice: 12000,
-            floorPrice: 999,
-            totalQuantity: 50,
-            startTimestamp: 1763390677004,
-            decrementRate: 9,
-            decrementInterval: 600000
-        }
-    }
+    }, 
 ]
