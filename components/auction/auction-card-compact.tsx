@@ -46,7 +46,7 @@ export function AuctionCardCompact({
     refetch: refreshCacheAuctionData
   } = useAuctionData({
     applicationId,
-    pollInterval: 5000,
+    pollInterval: 15000,
   });
 
   // Auction mutation

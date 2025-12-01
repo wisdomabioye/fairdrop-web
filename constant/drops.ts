@@ -8,7 +8,7 @@ export const AUCTION_DROPS = [
         config: {
             startPrice: 2000,
             floorPrice: 99,
-            totalQuantity: 1000,
+            totalQuantity: 100,
             startTimestamp: 1764580542000,
             endTimestamp: 1765185342000,
             decrementRate: 9,
