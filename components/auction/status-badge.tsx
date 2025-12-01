@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 interface StatusBadgeProps {
-  status: 'active' | 'upcoming' | 'ended';
+  status: 'active' | 'scheduled' | 'ended';
   size?: 'sm' | 'md';
   glow?: boolean;
   className?: string;
@@ -15,7 +15,7 @@ export function StatusBadge({ status, size = 'md', glow, className }: StatusBadg
       variant: 'success' as const,
       defaultGlow: true
     },
-    upcoming: {
+    scheduled: {
       label: 'Upcoming',
       variant: 'info' as const,
       defaultGlow: false

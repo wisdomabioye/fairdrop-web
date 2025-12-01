@@ -1,3 +1,5 @@
+import { getLineraClientManager } from "linera-react-client";
+
 export interface AuctionConfig {
   startTimestamp: number | null;
   decrementRate: number | null;
@@ -110,4 +112,19 @@ export function getNextPrice(config: AuctionConfig, currentPrice: number): numbe
  */
 export function isAtFloorPrice(currentPrice: number, floorPrice: number | null): boolean {
   return currentPrice === (floorPrice || 0);
+}
+
+
+export async function handleWasmFailureRecovery() {
+  const manager = getLineraClientManager();
+  if (!manager?.reinit) {
+    window.location.reload();
+    return;
+  }
+  try {
+    await manager.reinit();
+    // optionally retry the failed query here
+  } catch (e) {
+    window.location.reload();
+  }
 }

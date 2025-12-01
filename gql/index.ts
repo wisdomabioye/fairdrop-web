@@ -6,6 +6,9 @@
 
 // Queries, Mutations, Subscriptions
 export * from './queries';
+export * from './hooks';
+export * from './provider';
+
 
 // TypeScript Types
 export * from './types';

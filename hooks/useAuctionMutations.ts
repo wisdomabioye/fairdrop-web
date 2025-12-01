@@ -5,7 +5,7 @@
  * Handles wallet connection, bid placement, and subscription management.
  *
  * Key Features:
- * - Place bids with automatic wallet connection
+ * - Place bids
  * - Subscribe/unsubscribe to auction events
  * - Proper error handling and loading states
  * - Works with useAuctionData for seamless updates
@@ -15,8 +15,6 @@ import { useState, useCallback } from 'react';
 import {
   useLineraApplication,
   useWalletConnection,
-  useLineraClient,
-  getLineraClientManager,
 } from 'linera-react-client';
 
 export interface UseAuctionMutationsOptions {
@@ -47,6 +45,8 @@ export interface UseAuctionMutationsResult {
   isConnecting: boolean;
   /** Is subscription operation in progress? */
   isSubscribing: boolean;
+  /** Is currently subscribed to auction updates? */
+  isSubscribed: boolean;
 
   // Wallet state
   /** Can the user write (wallet connected)? */
@@ -55,12 +55,6 @@ export interface UseAuctionMutationsResult {
   isConnected: boolean;
   /** Connect wallet */
   connectWallet: () => Promise<void>;
-
-  // Utility
-  /** Current wallet balance */
-  balance: string | null;
-  /** Refresh balance */
-  refreshBalance: () => Promise<void>;
 }
 
 export function useAuctionMutations(
@@ -74,28 +68,16 @@ export function useAuctionMutations(
     onUnsubscribeSuccess,
   } = options;
 
-  const { mutate, canWrite } = useLineraApplication(applicationId);
+  const { app } = useLineraApplication(applicationId);
   const { connect, isConnected } = useWalletConnection();
-  const { client } = useLineraClient();
 
   const [isBidding, setIsBidding] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const [balance, setBalance] = useState<string | null>(null);
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
-  /**
-   * Refresh wallet balance
-   */
-  const refreshBalance = useCallback(async () => {
-    if (!client) return;
-
-    try {
-      const bal = await client.balance();
-      setBalance(bal);
-    } catch (err) {
-      console.error('[useAuctionMutations] Failed to refresh balance:', err);
-    }
-  }, [client]);
+  // Check if wallet is connected and can write
+  const canWrite = !!app?.walletClient;
 
   /**
    * Connect wallet (wrapper around linera-react-client's connect)
@@ -104,18 +86,16 @@ export function useAuctionMutations(
     setIsConnecting(true);
     try {
       await connect();
-      await refreshBalance();
     } catch (err) {
       console.error('[useAuctionMutations] Wallet connection failed:', err);
       throw err;
     } finally {
       setIsConnecting(false);
     }
-  }, [connect, refreshBalance]);
+  }, [connect]);
 
   /**
    * Place a bid
-   * Automatically connects wallet if not already connected
    */
   const placeBid = useCallback(
     async (quantity: number): Promise<boolean> => {
@@ -127,87 +107,61 @@ export function useAuctionMutations(
 
       try {
         // If wallet not connected, connect first
-        if (!canWrite) {
-          setIsConnecting(true);
-          try {
-            await connect();
-
-            // Wait for wallet connection and app to reload with write permissions
-            let attempts = 0;
-            const maxAttempts = 30; // 3 seconds max
-
-            while (attempts < maxAttempts) {
-              await new Promise(resolve => setTimeout(resolve, 100));
-
-              const clientManager = getLineraClientManager();
-              if (clientManager?.canWrite()) {
-                // Get fresh app instance with write permissions
-                const freshApp = await clientManager.getApplication(applicationId);
-                if (freshApp) {
-                  console.log('[useAuctionMutations] Wallet connected, placing bid...');
-
-                  // Execute mutation with fresh app
-                  const result = await freshApp.mutate(
-                    JSON.stringify({
-                      query: `mutation { placeBid(quantity: ${quantity}) }`,
-                    })
-                  );
-                  console.log('[useAuctionMutations] Bid result:', result);
-
-                  // Refresh balance
-                  await refreshBalance();
-
-                  setIsConnecting(false);
-                  onBidSuccess?.(quantity);
-                  return true;
-                }
-              }
-              attempts++;
-            }
-
-            throw new Error('Wallet connection timeout');
-          } catch (err) {
-            setIsConnecting(false);
-            const error = err instanceof Error ? err : new Error('Wallet connection failed');
-            onBidError?.(error);
-            throw error;
-          }
+        if (!app?.walletClient) {
+          const error = new Error('Wallet not connected');
+          onBidError?.(error);
+          throw error;
         }
 
-        // Wallet already connected, use regular mutate
-        setIsBidding(true);
-        const result = await mutate(
-          JSON.stringify({
-            query: `mutation { placeBid(quantity: ${quantity}) }`,
-          })
-        );
-        console.log('[useAuctionMutations] Bid result:', result);
-
-        // Refresh balance
-        await refreshBalance();
-
-        setIsBidding(false);
-        onBidSuccess?.(quantity);
-        return true;
+        if (app?.walletClient) {
+          // Wallet is connected, place the bid using walletClient
+          setIsBidding(true);
+          const result = await app.walletClient.mutate(
+            JSON.stringify({
+              query: `mutation { placeBid(quantity: ${quantity}) }`,
+            })
+          );
+          console.log('[useAuctionMutations] Bid result:', result);
+          
+          setIsBidding(false);
+          onBidSuccess?.(quantity);
+          return true;
+        }
+        
       } catch (err) {
         setIsBidding(false);
         const error = err instanceof Error ? err : new Error('Bid placement failed');
         console.error('[useAuctionMutations]', error);
         onBidError?.(error);
         return false;
+      } finally {
+          setIsBidding(false);
       }
+      return false
     },
-    [canWrite, connect, mutate, applicationId, refreshBalance, onBidSuccess, onBidError]
+    [app]
   );
 
   /**
    * Subscribe to auction updates from the creator chain
-   * IMPORTANT: Call this on subscriber chains to start receiving cachedAuctionState
+   * IMPORTANT: We call this on subscriber chains to start receiving cachedAuctionState
+   * This uses systemMutate so it doesn't require wallet connection
+   *
+   * Returns true if subscription succeeded or was already subscribed
    */
   const subscribeToAuction = useCallback(async (): Promise<boolean> => {
+    if (!app) return false;
+
+    // If already subscribed, don't subscribe again
+    if (isSubscribed) {
+      console.log('[useAuctionMutations] Already subscribed, skipping...');
+      return true;
+    }
+
     setIsSubscribing(true);
     try {
-      const result = await mutate(
+      // We use publicClient.systemMutate for subscriptions (no wallet needed!)
+      const result = await app.publicClient.systemMutate(
         JSON.stringify({
           query: 'mutation { subscribe }',
         })
@@ -215,6 +169,7 @@ export function useAuctionMutations(
       console.log('[useAuctionMutations] Subscribe result:', result);
 
       setIsSubscribing(false);
+      setIsSubscribed(true); // Mark as subscribed
       onSubscribeSuccess?.();
       return true;
     } catch (err) {
@@ -223,15 +178,19 @@ export function useAuctionMutations(
       console.error('[useAuctionMutations]', error);
       return false;
     }
-  }, [mutate, onSubscribeSuccess]);
+  }, [app, isSubscribed, onSubscribeSuccess]);
 
   /**
    * Unsubscribe from auction updates
+   * This uses systemMutate so it doesn't require wallet connection
    */
   const unsubscribeFromAuction = useCallback(async (): Promise<boolean> => {
+    if (!app) return false;
+
     setIsSubscribing(true);
     try {
-      const result = await mutate(
+      // Use publicClient.systemMutate for unsubscriptions (no wallet needed!)
+      const result = await app.publicClient.systemMutate(
         JSON.stringify({
           query: 'mutation { unsubscribe }',
         })
@@ -239,6 +198,7 @@ export function useAuctionMutations(
       console.log('[useAuctionMutations] Unsubscribe result:', result);
 
       setIsSubscribing(false);
+      setIsSubscribed(false); // Mark as unsubscribed
       onUnsubscribeSuccess?.();
       return true;
     } catch (err) {
@@ -247,7 +207,7 @@ export function useAuctionMutations(
       console.error('[useAuctionMutations]', error);
       return false;
     }
-  }, [mutate, onUnsubscribeSuccess]);
+  }, [app, onUnsubscribeSuccess]);
 
   return {
     placeBid,
@@ -256,10 +216,9 @@ export function useAuctionMutations(
     isBidding,
     isConnecting,
     isSubscribing,
+    isSubscribed,
     canWrite,
     isConnected,
     connectWallet,
-    balance,
-    refreshBalance,
   };
 }

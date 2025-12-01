@@ -1,8 +1,8 @@
 'use client';
 
 import Link from "next/link";
-import { ThemeToggle } from "./theme-toggle";
-import { WalletConnect } from "./wallet-connect";
+import { ThemeToggle } from "../theme/theme-toggle";
+import { WalletConnect } from "../wallet/wallet-connect";
 
 export function Header() {
   return (

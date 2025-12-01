@@ -88,7 +88,8 @@ export function useAuctionNotifications(
     setIsListening(true);
 
     // Subscribe to notifications
-    const unsubscribe = client.onNotification((notification: any) => {
+    // Note: onNotification returns void, there's no unsubscribe mechanism
+    client.onNotification((notification: any) => {
       const enrichedNotification: BlockNotification = {
         ...notification,
         timestamp: Date.now(),
@@ -121,10 +122,7 @@ export function useAuctionNotifications(
 
     // Cleanup on unmount
     return () => {
-      console.log('[useAuctionNotifications] Cleaning up notification listener');
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      console.log('[useAuctionNotifications] Notification listener will continue (no unsubscribe available)');
       setIsListening(false);
     };
   }, [client, enabled, maxHistory, onNotification, onRefetch]);

@@ -21,7 +21,7 @@ import {
   PLACE_BID,
   SUBSCRIBE_AUCTION,
   UNSUBSCRIBE_AUCTION,
-} from '@/lib/graphql/queries';
+} from '@/gql/queries';
 import {
   AuctionStatus,
   type GetAuctionFullStateResponse,
@@ -32,7 +32,7 @@ import {
   type UnsubscribeAuctionResponse,
   type UnifiedAuctionState,
   type ChainContext,
-} from '@/lib/graphql/types';
+} from '@/gql/types';
 
 export interface UseAuctionOptions {
   /** Optional chain ID to monitor events from (for subscriber chains) */
@@ -91,6 +91,7 @@ export function useAuction(options: UseAuctionOptions = {}): UseAuctionResult {
     GET_CHAIN_INFO,
     { skip }
   );
+  console.log("useAuction chainInfoData >>>", chainInfoData)
 
   const chainContext = useMemo<ChainContext | null>(() => {
     if (!chainInfoData?.chainInfo) return null;
@@ -102,7 +103,7 @@ export function useAuction(options: UseAuctionOptions = {}): UseAuctionResult {
       creatorChainId,
     };
   }, [chainInfoData]);
-
+  console.log("use Auction chainContext >>>", chainContext)
   const isCreatorChain = chainContext?.isCreatorChain ?? false;
   const isSubscriberChain = chainContext !== null && !isCreatorChain;
 
@@ -116,6 +117,7 @@ export function useAuction(options: UseAuctionOptions = {}): UseAuctionResult {
     skip: skip || !isCreatorChain,
     pollInterval: isCreatorChain ? pollInterval : undefined,
   });
+  console.log("use Auction creatorData >>>", creatorData)
 
   // Query for subscriber chain (uses cached state from events)
   const {
@@ -128,6 +130,8 @@ export function useAuction(options: UseAuctionOptions = {}): UseAuctionResult {
     skip: skip || !isSubscriberChain,
     pollInterval: isSubscriberChain ? pollInterval : undefined,
   });
+
+  console.log("useAuction subscriberData >>>", subscriberData)
 
   // Determine which data to use
   const loading = chainInfoLoading || (isCreatorChain ? creatorLoading : subscriberLoading);
@@ -185,6 +189,8 @@ export function useAuction(options: UseAuctionOptions = {}): UseAuctionResult {
 
     return null;
   }, [chainContext, isCreatorChain, isSubscriberChain, creatorData, subscriberData]);
+
+  console.log("useAuction auctionData", auction)
 
   // Mutations
   const [placeBidMutation, { loading: placingBid }] = useApolloMutation<PlaceBidResponse>(PLACE_BID);

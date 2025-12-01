@@ -62,3 +62,26 @@ export function timeUntilCompact(timestamp: number): string {
   const diff = timestamp - now;
   return formatTimeCompact(Math.max(0, diff));
 }
+
+/**
+ * Run a promise with timeout
+ * @param promise 
+ * @param ms 
+ * @returns 
+ */
+export function withTimeout<T>(
+  promise: Promise<T>, options: 
+  {ms: number, errorMessage: string}
+
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const id = setTimeout(() => reject(new Error(options.errorMessage)), options.ms || 10000);
+    promise.then((res) => {
+      clearTimeout(id);
+      resolve(res);
+    }).catch((err) => {
+      clearTimeout(id);
+      reject(err);
+    });
+  });
+}

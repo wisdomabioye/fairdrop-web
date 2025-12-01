@@ -1,17 +1,18 @@
 
 export const AUCTION_DROPS = [
     {
-        applicationId: "ed05cb16aaba6ca5df8949da618ed171d2c47f04915dc20ec3ea7909c5d22f16",
+        applicationId: "8a425dbd0b34df677d29ec77705d204445478e0bd00574aa0bd51a3adb05d0ad",
         title: "Space Slot",
         description: "Slot for LEO space travel",
         imageUrl: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=800&h=600&fit=crop",
         config: {
-            startPrice: 12000,
-            floorPrice: 999,
-            totalQuantity: 50,
-            startTimestamp: 1763390677004,
+            startPrice: 2000,
+            floorPrice: 99,
+            totalQuantity: 1000,
+            startTimestamp: 1764580542000,
+            endTimestamp: 1765185342000,
             decrementRate: 9,
-            decrementInterval: 600000
+            decrementInterval: 3000
         }
     }, 
     

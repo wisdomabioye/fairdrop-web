@@ -4,8 +4,7 @@ import { Features } from "@/components/fairdrop/features";
 import { Roadmap } from "@/components/fairdrop/roadmap";
 import { Vision } from "@/components/fairdrop/vision";
 import { HowItWorks } from "@/components/fairdrop/how-it-works";
-import { AuctionCard } from "@/components/fairdrop/auction-card";
-import { AuctionCardCompact } from "@/components/fairdrop/auction-card-compact";
+import { AuctionCardCompact } from "@/components/auction/auction-card-compact";
 import { AUCTION_DROPS } from "@/constant/drops";
 
 export default function Home() {

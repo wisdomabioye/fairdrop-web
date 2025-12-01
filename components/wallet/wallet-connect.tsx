@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { useWalletConnection, getLineraClientManager } from "linera-react-client";
-import { WalletSelectionDialog } from "./wallet-selection-dialog";
+import { WalletSelectionDialog } from "../wallet/wallet-selection-dialog";
 import { SUPPORTED_WALLETS } from "@/constant/wallets";
 import { toast } from "sonner";
 

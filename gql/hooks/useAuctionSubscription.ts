@@ -14,14 +14,14 @@
 
 import { useSubscription } from '@apollo/client/react';
 import { useState, useEffect, useCallback } from 'react';
-import { SUBSCRIBE_AUCTION_NOTIFICATIONS } from '@/lib/graphql/queries';
+import { SUBSCRIBE_AUCTION_NOTIFICATIONS } from '@/gql/queries';
 import type {
   AuctionNotification,
   ParsedAuctionEvent,
   AuctionInitializedEvent,
   BidPlacedEvent,
   StatusChangedEvent,
-} from '@/lib/graphql/types';
+} from '@/gql/types';
 
 export interface UseAuctionSubscriptionOptions {
   /** Chain ID to monitor for events (required) */
@@ -57,34 +57,52 @@ export interface UseAuctionSubscriptionResult {
 
 /**
  * Parse raw event JSON string into typed event
+ * Handles both StoredStreamEvent wrappers and direct events
  */
 function parseAuctionEvent(eventJson: string): ParsedAuctionEvent | null {
   try {
     const parsed = JSON.parse(eventJson);
 
+    // Check if this is a heartbeat message (ignore it)
+    if (parsed.type === 'heartbeat') {
+      return null;
+    }
+
+    // Check if this is a StoredStreamEvent wrapper
+    let eventData = parsed;
+    if ('event_type' in parsed && 'event_data' in parsed) {
+      // Unwrap the StoredStreamEvent to get the actual event
+      try {
+        eventData = JSON.parse(parsed.event_data);
+      } catch (err) {
+        console.error('[useAuctionSubscription] Failed to parse event_data:', err);
+        return null;
+      }
+    }
+
     // Detect event type from structure
-    if ('owner' in parsed && 'startTimestamp' in parsed && 'currentQuantitySold' in parsed) {
+    if ('owner' in eventData && 'startTimestamp' in eventData && 'currentQuantitySold' in eventData) {
       return {
         type: 'AuctionInitialized',
-        data: parsed as AuctionInitializedEvent,
+        data: eventData as AuctionInitializedEvent,
       };
     }
 
-    if ('bidder' in parsed && 'quantity' in parsed && 'newTotalSold' in parsed) {
+    if ('bidder' in eventData && 'quantity' in eventData && 'newTotalSold' in eventData) {
       return {
         type: 'BidPlaced',
-        data: parsed as BidPlacedEvent,
+        data: eventData as BidPlacedEvent,
       };
     }
 
-    if ('newStatus' in parsed) {
+    if ('newStatus' in eventData) {
       return {
         type: 'StatusChanged',
-        data: parsed as StatusChangedEvent,
+        data: eventData as StatusChangedEvent,
       };
     }
 
-    console.warn('[useAuctionSubscription] Unknown event format:', parsed);
+    console.warn('[useAuctionSubscription] Unknown event format:', eventData);
     return null;
   } catch (error) {
     console.error('[useAuctionSubscription] Failed to parse event:', error);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { AuctionCard } from "@/components/fairdrop/auction-card";
+import { AuctionCard } from "@/components/auction/auction-card";
 import { AUCTION_DROPS } from "@/constant/drops";
 import { Badge } from "@/components/ui/badge";
 
