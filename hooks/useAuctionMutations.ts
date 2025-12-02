@@ -107,21 +107,36 @@ export function useAuctionMutations(
 
       try {
         // If wallet not connected, connect first
-        if (!app?.walletClient) {
-          const error = new Error('Wallet not connected');
-          onBidError?.(error);
-          throw error;
-        }
+        // if (!app?.walletClient) {
+        //   const error = new Error('Wallet not connected');
+        //   onBidError?.(error);
+        //   throw error;
+        // }
 
-        if (app?.walletClient) {
-          // Wallet is connected, place the bid using walletClient
+        // if (app?.walletClient) {
+        //   // Wallet is connected, place the bid using walletClient
+        //   setIsBidding(true);
+        //   const result = await app.walletClient.mutate(
+        //     JSON.stringify({
+        //       query: `mutation { placeBid(quantity: ${quantity}) }`,
+        //     })
+        //   );
+        //   console.log('[useAuctionMutations] Bid result:', result);
+          
+        //   setIsBidding(false);
+        //   onBidSuccess?.(quantity);
+        //   return true;
+        // }
+
+        if (app?.publicClient) {
+          // Intentionally mutation from pubicClient for now 
           setIsBidding(true);
-          const result = await app.walletClient.mutate(
+          const result = await app.publicClient.systemMutate(
             JSON.stringify({
               query: `mutation { placeBid(quantity: ${quantity}) }`,
             })
           );
-          console.log('[useAuctionMutations] Bid result:', result);
+          console.log('[useAuctionMutations publicClient.systemMutate] Bid result:', result);
           
           setIsBidding(false);
           onBidSuccess?.(quantity);

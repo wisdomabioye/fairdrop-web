@@ -120,14 +120,14 @@ export function AuctionCard({
   const floorPrice = Number(cachedAuctionState?.floorPrice ?? config.floorPrice ?? 0);
   const totalQuantity = Number(cachedAuctionState?.totalQuantity ?? config.totalQuantity ?? 0);
   const soldQuantity = Number(cachedAuctionState?.quantitySold ?? 0);
-  const status = cachedAuctionState?.status.toLowerCase() as 'active' | 'upcoming' | 'ended' || cachedAuctionState?.status;
+  const status = cachedAuctionState?.status.toLowerCase() as 'active' | 'scheduled' | 'ended' || staticAuctionState?.status;
   const remaining = totalQuantity - soldQuantity;
   const startTimestamp = Number(cachedAuctionState?.startTimestamp ?? config.startTimestamp ?? 0);
   const percentageSold = Math.round((soldQuantity / totalQuantity) * 100) 
 
   const statusConfig = {
     active: { label: "Live", variant: "success" as const, glow: true },
-    upcoming: { label: "Upcoming", variant: "info" as const, glow: false },
+    scheduled: { label: "scheduled", variant: "info" as const, glow: false },
     ended: { label: "Ended", variant: "default" as const, glow: false },
   };
 
@@ -215,7 +215,7 @@ export function AuctionCard({
             </div>
           )}
 
-          {status === "upcoming" && startTimestamp && (
+          {status === "scheduled" && startTimestamp && (
             <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-glass border border-white/10">
               <span className="text-xs text-text-secondary">Starts in</span>
               <AuctionTimer endTime={Number(startTimestamp)} />
@@ -268,7 +268,7 @@ export function AuctionCard({
               )}
             </>
           )}
-          {status === "upcoming" && (
+          {status === "scheduled" && (
             <Button variant="outline" size="md" className="w-full" disabled>
               Not Started
             </Button>

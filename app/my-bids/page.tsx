@@ -1,17 +1,20 @@
-import { InDevelopment } from "@/components/fairdrop/in-development";
+import { MyBids } from '@/components/auction/my-bids';
+import { AUCTION_DROPS } from '@/constant/drops';
 
 export default function MyBidsPage() {
+
   return (
-    <InDevelopment
-      title="My Bids"
-      description="Track all your auction bids and purchases in one place. This feature is coming soon!"
-      features={[
-        "View all active bids",
-        "Track bid history",
-        "See won auctions",
-        "Download purchase receipts",
-        "Manage your items",
-      ]}
-    />
-  );
+    <div>
+      {
+        AUCTION_DROPS.map((auctionData, index) => (
+          <MyBids 
+            key={auctionData.applicationId + index}
+            applicationId={auctionData.applicationId} 
+            walletAddress="" 
+          />
+        ))
+      }
+      
+    </div>
+  )
 }

@@ -107,10 +107,12 @@ export function AuctionCardCompact({
   ]);
 
   const handlePlaceBid = async () => {
-    if (!auctionMutation.isConnected) {
-      await auctionMutation.connectWallet();
-      return
-    }
+    // if (!auctionMutation.isConnected) {
+    //   await auctionMutation.connectWallet();
+    //   return
+    // }
+
+
     
     if (!bidAmount || Number(bidAmount) <= 0) {
       toast.error('Invalid Amount', {
@@ -283,9 +285,10 @@ export function AuctionCardCompact({
                 size="sm"
                 className="px-3 shrink-0"
                 onClick={handlePlaceBid}
-                disabled={!bidAmount || remaining === 0 || auctionMutation.isConnecting || auctionMutation.isBidding}
+                disabled={!bidAmount || remaining === 0 /* || auctionMutation.isConnecting  */|| auctionMutation.isBidding}
               >
-                {auctionMutation.isConnecting ? (
+                Bid
+                {/* {auctionMutation.isConnecting ? (
                   <>
                     <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                     Connecting...
@@ -295,7 +298,7 @@ export function AuctionCardCompact({
                     <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                     Bidding...
                   </>
-                ) : auctionMutation.canWrite ? "Bid" : "Connect"}
+                ) : auctionMutation.canWrite ? "Bid" : "Connect"} */}
               </Button>
             </div>
             

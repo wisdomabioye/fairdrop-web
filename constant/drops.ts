@@ -1,7 +1,7 @@
 
 export const AUCTION_DROPS = [
     {
-        applicationId: "8a425dbd0b34df677d29ec77705d204445478e0bd00574aa0bd51a3adb05d0ad",
+        applicationId: "11d90de3d2e5d7f5c7aea382134ef4ee0c0bef3b44456f3088a5040336e9ee25",
         title: "Space Slot",
         description: "Slot for LEO space travel",
         imageUrl: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=800&h=600&fit=crop",

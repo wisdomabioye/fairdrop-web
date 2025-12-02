@@ -7,7 +7,7 @@ export function AppLineraProvider({ children }: {children: React.ReactNode}) {
   return (
     <LineraProvider
       faucetUrl="https://faucet.testnet-conway.linera.net"
-      readOnlyWallet={{ constantAddress: "0x1000000000000000000000000000000000000003" }}
+      readOnlyWallet={{ constantAddress: "0x2000000000000000000000000000000000000003" }}
       fallback={<CosmicLoading />}
       logging={{
         enabled: true,

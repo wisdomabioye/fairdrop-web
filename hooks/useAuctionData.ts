@@ -13,12 +13,6 @@
  * - Automatic error recovery for critical WASM binding failures
  * - Configurable polling with zero resource usage when disabled
  *
- * Error Recovery:
- * - Detects critical WASM binding errors that cause all requests to fail
- * - Tracks consecutive errors and automatically reloads the page after threshold
- * - Prevents infinite reload loops with 30-second cooldown
- * - We can be disabled via autoReloadOnCriticalError option
- *
  * IMPORTANT: On subscriber chains, we must call subscribeToAuction() first
  * to populate the cachedAuctionState. Otherwise, you'll get null data.
  */
@@ -60,6 +54,7 @@ const SUBSCRIBER_CHAIN_QUERY = () => ({
     cachedAuctionState {
       owner
       startTimestamp
+      endTimestamp
       startPrice
       floorPrice
       decrementRate
@@ -70,7 +65,6 @@ const SUBSCRIBER_CHAIN_QUERY = () => ({
       currentPrice
       lastUpdated
     }
-    streamEventsJson
   }`
 });
 
@@ -78,17 +72,23 @@ const SUBSCRIBER_CHAIN_QUERY = () => ({
  * Wallet Client Query
  * @returns 
  */
-const BIDDER_CHAIN_QUERY = () => ({
+const BIDDER_CHAIN_QUERY = (bidderAddress: string) => ({
   query: `query {
-    myBids {
+    bidsForBidder(bidder: "${bidderAddress}") {
       quantity
+      bidPrice
       timestamp
       status
-      bidPrice
       clearingPrice
     }
-    myRefund
-    myBidsCount
+    bidderSummary(bidder: "${bidderAddress}") {
+      totalQuantity
+      totalCost
+      totalRefund
+      netCost
+      acceptedBids
+      rejectedBids
+    }
   }`
 });
 
@@ -125,18 +125,18 @@ enum AuctionStatus {
   Ended = 'ENDED',
 }
 
-enum BidStatus {
-    Pending = 'Pending',
-    Accepted = 'Accepted',
-    Rejected = 'Rejected',
+export enum BidStatus {
+    PENDING = 'PENDING',
+    ACCEPTED = 'ACCEPTED',
+    REJECTED = 'REJECTED',
 }
 
-enum EventType {
-  AuctionInitialized = 'AuctionInitialized',
-  BidAccepted = 'BidAccepted',
-  BidRejected = 'BidRejected',
-  StatusChanged = 'StatusChanged'
-}
+// enum EventType {
+//   AuctionInitialized = 'AuctionInitialized',
+//   BidAccepted = 'BidAccepted',
+//   BidRejected = 'BidRejected',
+//   StatusChanged = 'StatusChanged'
+// }
 
 interface ChainInfoFlat {
   currentChainId: string;
@@ -184,50 +184,59 @@ interface UserBid {
   clearingPrice: string;
 }
 
-interface AuctionInitializedEvent extends Omit<
-CachedAuctionStateFlat, 
-'quantitySold' | 'status' | 'lastUpdated'
-> {
-  currentQuantitySold: string;
-  currentStatus: AuctionStatus;
-  timestamp: string
+interface UserBidSummary {
+  totalQuantity: string;
+  totalCost: string;
+  totalRefund: string;
+  netCost: string;
+  acceptedBids: string;
+  rejectedBids: string;
 }
 
-interface BidAcceptedEvent {
-  bidder: string;
-  quantity: string;
-  bidPrice: string;
-  newTotalSold: string;
-  timestamp: string;
-}
+// interface AuctionInitializedEvent extends Omit<
+// CachedAuctionStateFlat, 
+// 'quantitySold' | 'status' | 'lastUpdated'
+// > {
+//   currentQuantitySold: string;
+//   currentStatus: AuctionStatus;
+//   timestamp: string
+// }
 
-interface BidRejectedEvent {
-  bidder: string;
-  quantity: string;
-  reason: string;
-  timestamp: string;
-}
+// interface BidAcceptedEvent {
+//   bidder: string;
+//   quantity: string;
+//   bidPrice: string;
+//   newTotalSold: string;
+//   timestamp: string;
+// }
 
-interface AuctionStatusChangedEvent {
-  newStatus: AuctionStatus;
-  timestamp: string;
-}
+// interface BidRejectedEvent {
+//   bidder: string;
+//   quantity: string;
+//   reason: string;
+//   timestamp: string;
+// }
 
-type EventTypeToData = {
-  [EventType.AuctionInitialized]: AuctionInitializedEvent;
-  [EventType.BidAccepted]: BidAcceptedEvent;
-  [EventType.BidRejected]: BidRejectedEvent;
-  [EventType.StatusChanged]: AuctionStatusChangedEvent;
-}
+// interface AuctionStatusChangedEvent {
+//   newStatus: AuctionStatus;
+//   timestamp: string;
+// }
 
-type StoredStreamEvent = {
-  [K in EventType]: {
-    eventType: K;
-    eventData: EventTypeToData[K];
-    chainId: string;
-    timestamp: string;
-  }
-}[EventType];
+// type EventTypeToData = {
+//   [EventType.AuctionInitialized]: AuctionInitializedEvent;
+//   [EventType.BidAccepted]: BidAcceptedEvent;
+//   [EventType.BidRejected]: BidRejectedEvent;
+//   [EventType.StatusChanged]: AuctionStatusChangedEvent;
+// }
+
+// type StoredStreamEvent = {
+//   [K in EventType]: {
+//     eventType: K;
+//     eventData: EventTypeToData[K];
+//     chainId: string;
+//     timestamp: string;
+//   }
+// }[EventType];
 
 type CreatorChainResponse = {
   chainInfo: ChainInfoFlat;
@@ -237,14 +246,13 @@ type CreatorChainResponse = {
 type SubscriberChainResponse = {
   chainInfo: ChainInfoFlat | null;
   cachedAuctionState: CachedAuctionStateFlat | null;
-  streamEventsJson: string[] | null;
-  streamEvents: StoredStreamEvent[] | null;
+  // streamEventsJson: string[] | null;
+  // streamEvents: StoredStreamEvent[] | null;
 };
 
 type BidderChainResponse = {
-  myBids: UserBid[] | null;
-  myRefund: string | null;
-  myBidsCount: string | null;
+  bidsForBidder: UserBid[] | null;
+  bidderSummary: UserBidSummary | null;
 }
 
 export interface UseAuctionDataOptions {
@@ -292,7 +300,6 @@ export function useAuctionData(options: UseAuctionDataOptions): UseAuctionDataRe
 
   const { app, isReady } = useLineraApplication(applicationId);
   const [chainInfo, setChainInfo] = useState<ChainInfoFlat | null>(null);
-  const [streamEvents, setStreamEvents] = useState<StoredStreamEvent[] | null>(null);
   const [cachedAuctionState, setCachedAuctionState] = useState<CachedAuctionStateFlat | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -357,12 +364,7 @@ export function useAuctionData(options: UseAuctionDataOptions): UseAuctionDataRe
         
         const { data: { 
           cachedAuctionState: onchainCachedAuctionState,
-          streamEventsJson,
         } } = JSON.parse(result) as { data: SubscriberChainResponse };
-
-        if (streamEventsJson) {
-          setStreamEvents(streamEventsJson.map(e => JSON.parse(e)))
-        }
 
         if (onchainCachedAuctionState) {
           cachedAuctionState = {
@@ -408,8 +410,6 @@ export function useAuctionData(options: UseAuctionDataOptions): UseAuctionDataRe
   usePolling(fetchAuctionData, pollInterval, { immediate: true });
 
   return {
-    streamEvents,
-    streamEventsJson: null,
     cachedAuctionState,
     chainInfo,
     isCreatorChain,
@@ -421,7 +421,7 @@ export function useAuctionData(options: UseAuctionDataOptions): UseAuctionDataRe
   };
 }
 
-export function userBidData(options: Pick<UseAuctionDataOptions, 'applicationId'>): UseBidDataResult {
+export function userBidData(walletAddress: string, options: Pick<UseAuctionDataOptions, 'applicationId'>): UseBidDataResult {
   const {
     applicationId,
   } = options;
@@ -441,16 +441,24 @@ export function userBidData(options: Pick<UseAuctionDataOptions, 'applicationId'
     setError(null);
     
     try {
-      // If wallet not connected, connect first
-      if (!app?.walletClient) {
-        const error = new Error('Wallet not connected');
-        throw error;
-      }
+      // // If wallet not connected, connect first
+      // if (!app?.walletClient) {
+      //   const error = new Error('Wallet not connected');
+      //   throw error;
+      // }
 
-      const userBidResult = await app.walletClient.query<string>(JSON.stringify(BIDDER_CHAIN_QUERY()))
+      // // Use public client wallet address
+      // const userBidResult = await app.walletClient.query<string>(JSON.stringify(BIDDER_CHAIN_QUERY(walletAddress || app.publicClient.getAddress())))
+      // const { data: userBidData } = JSON.parse(userBidResult) as { data: BidderChainResponse };
+      // console.log("onchainUserBidData", userBidData);
+      // setUserBidData(userBidData);
+
+      // Use public client for testing
+      const userBidResult = await app.publicClient.query<string>(JSON.stringify(BIDDER_CHAIN_QUERY(walletAddress || app.publicClient.getAddress())))
       const { data: userBidData } = JSON.parse(userBidResult) as { data: BidderChainResponse };
-      console.log("onchainUserBidData", userBidData);
+      console.log("onchainUserBidData", JSON.parse(userBidResult));
       setUserBidData(userBidData);
+
 
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to fetch user bid data');
@@ -472,9 +480,8 @@ export function userBidData(options: Pick<UseAuctionDataOptions, 'applicationId'
   return {
     loading,
     error,
-    myBids: userBidData?.myBids || null,
-    myBidsCount: userBidData?.myBidsCount || null,
-    myRefund: userBidData?.myRefund || null,
+    bidderSummary: userBidData?.bidderSummary || null,
+    bidsForBidder: userBidData?.bidsForBidder || null,
     refetch: fetchUserBidData
   }
 }
