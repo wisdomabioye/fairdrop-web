@@ -92,6 +92,33 @@ const BIDDER_CHAIN_QUERY = (bidderAddress: string) => ({
   }`
 });
 
+const BID_HISTORY_QUERY = ({
+  status = BidStatus.ACCEPTED,
+  minPrice = 0,
+  offset = 0,
+  limit = 29
+}: {
+  status: BidStatus,
+  minPrice: number,
+  offset: number,
+  limit: number,
+}) => ({
+  query: `
+    query {
+      getBids(
+        status: "${status}",
+        minPrice: "${minPrice}",
+        offset: ${offset},
+        limit: ${limit}
+      ) {
+        bids { bidder, quantity, bidPrice, timestamp, status }
+        totalCount
+        hasMore
+      }
+    }
+  `
+})
+
 // const GET_STREAM_EVENTS = (chainId: string) => ({
 //   query: `query {
 //       streamEvents(chainId: ${chainId}) {
@@ -193,6 +220,10 @@ interface UserBidSummary {
   rejectedBids: string;
 }
 
+interface BidWithOwner extends UserBid {
+  bidder: string;
+}
+
 // interface AuctionInitializedEvent extends Omit<
 // CachedAuctionStateFlat, 
 // 'quantitySold' | 'status' | 'lastUpdated'
@@ -246,13 +277,17 @@ type CreatorChainResponse = {
 type SubscriberChainResponse = {
   chainInfo: ChainInfoFlat | null;
   cachedAuctionState: CachedAuctionStateFlat | null;
-  // streamEventsJson: string[] | null;
-  // streamEvents: StoredStreamEvent[] | null;
 };
 
 type BidderChainResponse = {
   bidsForBidder: UserBid[] | null;
   bidderSummary: UserBidSummary | null;
+}
+
+type BidHistoryResponse = {
+  bids: BidWithOwner | null;
+  totalCount: number;
+  hasMore: boolean;
 }
 
 export interface UseAuctionDataOptions {

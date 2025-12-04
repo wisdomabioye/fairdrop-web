@@ -41,15 +41,6 @@ export function Header() {
           >
             Create
           </Link>
-          <Link
-            href="/my-bids"
-            className="text-sm font-medium text-text-secondary hover:text-primary transition-colors relative"
-          >
-            My Bids
-            <span className="absolute -top-1 -right-8 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-primary text-white rounded">
-              New
-            </span>
-          </Link>
         </nav>
 
         {/* Actions */}

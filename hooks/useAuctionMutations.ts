@@ -8,7 +8,6 @@
  * - Place bids
  * - Subscribe/unsubscribe to auction events
  * - Proper error handling and loading states
- * - Works with useAuctionData for seamless updates
  */
 
 import { useState, useCallback } from 'react';
@@ -16,6 +15,7 @@ import {
   useLineraApplication,
   useWalletConnection,
 } from 'linera-react-client';
+import { useAuctionStore } from '@/stores/auction-store';
 
 export interface UseAuctionMutationsOptions {
   /** Application ID for the auction */
@@ -71,6 +71,9 @@ export function useAuctionMutations(
   const { app } = useLineraApplication(applicationId);
   const { connect, isConnected } = useWalletConnection();
 
+  // Get store actions for cache invalidation
+  const { invalidateAuction, invalidateUserBidHistory, invalidateAllBids } = useAuctionStore();
+
   const [isBidding, setIsBidding] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
@@ -107,41 +110,50 @@ export function useAuctionMutations(
 
       try {
         // If wallet not connected, connect first
-        // if (!app?.walletClient) {
-        //   const error = new Error('Wallet not connected');
-        //   onBidError?.(error);
-        //   throw error;
-        // }
+        if (!app?.walletClient) {
+          const error = new Error('Wallet not connected');
+          onBidError?.(error);
+          throw error;
+        }
 
-        // if (app?.walletClient) {
-        //   // Wallet is connected, place the bid using walletClient
-        //   setIsBidding(true);
-        //   const result = await app.walletClient.mutate(
-        //     JSON.stringify({
-        //       query: `mutation { placeBid(quantity: ${quantity}) }`,
-        //     })
-        //   );
-        //   console.log('[useAuctionMutations] Bid result:', result);
-          
-        //   setIsBidding(false);
-        //   onBidSuccess?.(quantity);
-        //   return true;
-        // }
-
-        if (app?.publicClient) {
-          // Intentionally mutation from pubicClient for now 
+        if (app?.walletClient) {
+          // Wallet is connected, place the bid using walletClient
           setIsBidding(true);
-          const result = await app.publicClient.systemMutate(
+          const result = await app.walletClient.mutate(
             JSON.stringify({
               query: `mutation { placeBid(quantity: ${quantity}) }`,
             })
           );
-          console.log('[useAuctionMutations publicClient.systemMutate] Bid result:', result);
+          console.log('[useAuctionMutations] Bid result:', result);
           
+          invalidateAuction(applicationId);
+          invalidateUserBidHistory(applicationId); // Invalidate all user bid histories
+          invalidateAllBids(applicationId);
+
           setIsBidding(false);
           onBidSuccess?.(quantity);
           return true;
         }
+
+        // if (app?.publicClient) {
+        //   // Intentionally mutation from pubicClient for now
+        //   setIsBidding(true);
+        //   const result = await app.publicClient.systemMutate(
+        //     JSON.stringify({
+        //       query: `mutation { placeBid(quantity: ${quantity}) }`,
+        //     })
+        //   );
+        //   console.log('[useAuctionMutations publicClient.systemMutate] Bid result:', result);
+
+        //   // Invalidate caches after successful bid
+        //   invalidateAuction(applicationId);
+        //   invalidateUserBidHistory(applicationId); // Invalidate all user bid histories
+        //   invalidateAllBids(applicationId);
+
+        //   setIsBidding(false);
+        //   onBidSuccess?.(quantity);
+        //   return true;
+        // }
         
       } catch (err) {
         setIsBidding(false);
@@ -182,6 +194,9 @@ export function useAuctionMutations(
         })
       );
       console.log('[useAuctionMutations] Subscribe result:', result);
+
+      // Invalidate auction cache to refresh data after subscription
+      invalidateAuction(applicationId);
 
       setIsSubscribing(false);
       setIsSubscribed(true); // Mark as subscribed

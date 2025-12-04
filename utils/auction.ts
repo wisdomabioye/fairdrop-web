@@ -1,7 +1,9 @@
 import { getLineraClientManager } from "linera-react-client";
+import { AuctionStatus } from "@/stores/auction-store";
 
 export interface AuctionConfig {
   startTimestamp: number | null;
+  endTimestamp: number | null;
   decrementRate: number | null;
   decrementInterval: number | null;
   startPrice: number | null;
@@ -14,7 +16,7 @@ export interface CalculatedAuctionState {
   timeToFloorPrice: number; // milliseconds
   timeToStart: number; // milliseconds (negative if started)
   percentageDecreased: number; // 0-100
-  status: 'upcoming' | 'active' | 'ended';
+  status: AuctionStatus;
   isAtFloorPrice: boolean;
   nextPriceDropIn: number; // milliseconds until next price drop
 }
@@ -29,11 +31,24 @@ export function calculateAuctionState(
 ): CalculatedAuctionState {
   const {
     startTimestamp,
+    endTimestamp,
     startPrice,
     floorPrice,
     decrementRate,
     decrementInterval,
   } = config;
+
+  if (endTimestamp && currentTime > endTimestamp) {
+    return {
+      currentPrice: floorPrice || 0,
+      timeToFloorPrice: 0,
+      timeToStart: 0,
+      percentageDecreased: 0,
+      status: AuctionStatus.Ended,
+      isAtFloorPrice: false,
+      nextPriceDropIn: 0,
+    };
+  }
 
   // If auction hasn't started yet
   if (startTimestamp && currentTime < startTimestamp) {
@@ -42,7 +57,7 @@ export function calculateAuctionState(
       timeToFloorPrice: 0,
       timeToStart: startTimestamp - currentTime,
       percentageDecreased: 0,
-      status: 'upcoming',
+      status: AuctionStatus.Scheduled,
       isAtFloorPrice: false,
       nextPriceDropIn: 0,
     };
@@ -63,7 +78,7 @@ export function calculateAuctionState(
     floorPrice || 0
   );
 
-  const isAtFloorPrice = calculatedPrice === (floorPrice || 0);
+  const isAtFloorPrice = calculatedPrice <= (floorPrice || 0);
 
   // Calculate time until next price drop
   let nextPriceDropIn = 0;
@@ -92,7 +107,7 @@ export function calculateAuctionState(
     timeToFloorPrice,
     timeToStart: startTimestamp ? startTimestamp - currentTime : 0,
     percentageDecreased,
-    status: 'active',
+    status: AuctionStatus.Active,
     isAtFloorPrice,
     nextPriceDropIn,
   };

@@ -59,7 +59,7 @@ export function CountdownTimer({
         {label}
       </span>
       <span className={cn('font-semibold tabular-nums', timeSizeClasses[size], variantClasses[variant])}>
-        {timeRemaining || '0s'}
+        {timeRemaining || ' 0s'}
       </span>
     </div>
   );

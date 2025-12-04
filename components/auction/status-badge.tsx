@@ -1,26 +1,34 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { AuctionStatus } from '@/stores/auction-store';
 
 interface StatusBadgeProps {
-  status: 'active' | 'scheduled' | 'ended';
+  status: AuctionStatus;
   size?: 'sm' | 'md';
   glow?: boolean;
   className?: string;
 }
 
 export function StatusBadge({ status, size = 'md', glow, className }: StatusBadgeProps) {
-  const config = {
-    active: {
+  const config: Record<
+  AuctionStatus, 
+  {
+    label: string, 
+    variant: 'success' | 'info' | 'default', 
+    defaultGlow: boolean
+  }
+  > = {
+    [AuctionStatus.Active]: {
       label: 'Live',
       variant: 'success' as const,
       defaultGlow: true
     },
-    scheduled: {
+    [AuctionStatus.Scheduled]: {
       label: 'Upcoming',
       variant: 'info' as const,
       defaultGlow: false
     },
-    ended: {
+    [AuctionStatus.Ended]: {
       label: 'Ended',
       variant: 'default' as const,
       defaultGlow: false

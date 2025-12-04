@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "postinstall": "mkdir -p public/linera && cp -r node_modules/@linera/client/dist/* public/linera/",
-    "typings": "npx tsc --noEmit",
+    "type-check": "npx tsc --noEmit",
     "dev": "next dev --port 8000",
     "build": "next build",
     "start": "next start",
@@ -33,7 +33,8 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "sonner": "^2.0.7",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -1,15 +1,16 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AuctionTimer } from "./auction-timer";
 import { Button } from "@/components/ui/button";
-import { Dialog, useDialog } from "@/components/ui/dialog";
-import { useAuctionData, useAuctionMutations } from '@/hooks';
+import { useCachedAuction, useAuctionMutations } from '@/hooks';
 import { calculateAuctionState, AuctionConfig } from "@/utils/auction";
 import { toast } from "sonner";
+import { ExternalLink, Zap } from 'lucide-react';
 
 export interface AuctionCardProps {
   applicationId: string;
@@ -28,12 +29,11 @@ export function AuctionCard({
   config,
   onBid,
 }: AuctionCardProps) {
-  const { dialogState, showDialog, closeDialog } = useDialog();
-  const [bidAmount, setBidAmount] = useState('');
+  const [showQuickBidModal, setShowQuickBidModal] = useState(false);
+  const [quickBidAmount, setQuickBidAmount] = useState('1');
   const staticAuctionState = calculateAuctionState(config);
-  
-  // Auction data
-  // Auction data
+
+  // Auction data - using cached hook for better performance
   const {
     cachedAuctionState,
     // error: auctionFetchError,
@@ -41,7 +41,7 @@ export function AuctionCard({
     // isCreatorChain,
     isSubscriberChain,
     refetch: refreshCacheAuctionData
-  } = useAuctionData({
+  } = useCachedAuction({
     applicationId,
     pollInterval: 5000,
   });
@@ -51,7 +51,6 @@ export function AuctionCard({
   const auctionMutation = useAuctionMutations({
     applicationId,
     onBidSuccess(quantity) {
-      setBidAmount('1');
       toast.success('Bid Placed Successfully!', {
         description: `Your bid for ${quantity} item(s) has been placed successfully.`,
       });
@@ -97,19 +96,21 @@ export function AuctionCard({
   ]);
 
 
-  const handlePlaceBid = async () => {
-    if (!auctionMutation.isConnected) {
-      await auctionMutation.connectWallet();
-      return
-    }
-    
-    if (!bidAmount || Number(bidAmount) <= 0) {
+  const handleQuickBid = () => {
+    setQuickBidAmount('1');
+    setShowQuickBidModal(true);
+  };
+
+  const handleQuickBidSubmit = async () => {
+    if (!quickBidAmount || Number(quickBidAmount) <= 0) {
       toast.error('Invalid Amount', {
         description: 'Please enter a valid bid quantity.',
       });
       return;
     }
-    await auctionMutation.placeBid(Number(bidAmount));
+
+    setShowQuickBidModal(false);
+    await auctionMutation.placeBid(Number(quickBidAmount));
   };
 
 
@@ -235,60 +236,191 @@ export function AuctionCard({
         <CardFooter className="relative flex-col space-y-2 pt-3">
           {status === "active" && (
             <>
-              {/* Bid Input & Button */}
+              {/* Action Buttons */}
               <div className="w-full flex gap-2">
-                <input
-                  type="number"
-                  value={bidAmount}
-                  onChange={(e) => setBidAmount(e.target.value)}
-                  placeholder="Qty"
-                  className="flex-1 min-w-0 px-3 py-2 text-sm border border-white/20 rounded-lg bg-glass backdrop-blur-sm text-text-primary placeholder-text-secondary focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  disabled={auctionMutation.isConnecting || auctionMutation.isBidding}
-                  min="1"
-                />
                 <Button
                   variant="primary"
                   size="md"
-                  className="px-4 min-w-[100px] shrink-0"
-                  onClick={handlePlaceBid}
-                  isLoading={auctionMutation.isConnecting || auctionMutation.isBidding}
-                  disabled={!bidAmount || remaining === 0 || auctionMutation.isConnecting || auctionMutation.isBidding}
+                  className="flex-1 gap-2"
+                  onClick={handleQuickBid}
+                  disabled={remaining === 0 || auctionMutation.isBidding}
                 >
-                  {auctionMutation.isConnecting ? 'Connecting...' :
-                   auctionMutation.isBidding ? 'Bidding...' :
-                   auctionMutation.canWrite ? "Place Bid" : "Connect"}
+                  <Zap className="w-4 h-4" />
+                  Quick Bid
                 </Button>
+                <Link href={`/auctions/${applicationId}`} className="flex-1">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    className="w-full gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Details
+                  </Button>
+                </Link>
               </div>
 
               {/* Helper text */}
-              {!auctionMutation.canWrite && !auctionMutation.isConnecting && !auctionMutation.isBidding && (
+              {!auctionMutation.canWrite && (
                 <p className="text-xs text-text-secondary text-center leading-tight">
-                  Will connect wallet
+                  Wallet will connect automatically
                 </p>
               )}
             </>
           )}
           {status === "scheduled" && (
-            <Button variant="outline" size="md" className="w-full" disabled>
-              Not Started
-            </Button>
+            <Link href={`/auctions/${applicationId}`} className="w-full">
+              <Button variant="outline" size="md" className="w-full gap-2">
+                <ExternalLink className="w-4 h-4" />
+                View Details
+              </Button>
+            </Link>
           )}
           {status === "ended" && (
-            <Button variant="ghost" size="md" className="w-full" disabled>
-              Ended
-            </Button>
+            <Link href={`/auctions/${applicationId}`} className="w-full">
+              <Button variant="ghost" size="md" className="w-full gap-2">
+                <ExternalLink className="w-4 h-4" />
+                View Results
+              </Button>
+            </Link>
           )}
         </CardFooter>
       </Card>
 
-      {/* Dialog for notifications */}
-      <Dialog
-        open={dialogState.open}
-        onClose={closeDialog}
-        title={dialogState.title}
-        description={dialogState.description}
-        variant={dialogState.variant}
-      />
+      {/* Quick Bid Modal */}
+      {showQuickBidModal && (
+        <QuickBidModal
+          open={showQuickBidModal}
+          onClose={() => setShowQuickBidModal(false)}
+          onSubmit={handleQuickBidSubmit}
+          currentPrice={currentPrice}
+          remaining={remaining}
+          bidAmount={quickBidAmount}
+          setBidAmount={setQuickBidAmount}
+          isSubmitting={auctionMutation.isBidding}
+          title={title || 'Fairdrop Auction'}
+        />
+      )}
+    </>
+  );
+}
+
+// Quick Bid Modal Component
+interface QuickBidModalProps {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+  currentPrice: number;
+  remaining: number;
+  bidAmount: string;
+  setBidAmount: (amount: string) => void;
+  isSubmitting: boolean;
+  title: string;
+}
+
+function QuickBidModal({
+  open,
+  onClose,
+  onSubmit,
+  currentPrice,
+  remaining,
+  bidAmount,
+  setBidAmount,
+  isSubmitting,
+  title,
+}: QuickBidModalProps) {
+  const totalCost = currentPrice * Number(bidAmount || 0);
+
+  return (
+    <>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={onClose}
+          />
+
+          <div className="relative w-full max-w-md transform animate-in zoom-in-95 duration-200">
+            <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+              <div className="absolute top-4 left-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl animate-float" />
+              <div className="absolute bottom-4 right-4 w-32 h-32 bg-secondary/10 rounded-full blur-2xl animate-float" style={{ animationDelay: "1s" }} />
+            </div>
+
+            <div className="relative bg-gradient-to-br from-background/95 to-background/90 backdrop-blur-xl border border-primary/30 rounded-2xl shadow-2xl overflow-hidden">
+              <div className="p-6 pb-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/20 text-primary">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-text-primary">Quick Bid</h3>
+                    <p className="text-xs text-text-secondary mt-0.5">{title}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="p-4 rounded-lg bg-glass border border-white/10">
+                  <div className="flex items-baseline justify-between mb-1">
+                    <span className="text-sm text-text-secondary">Current Price</span>
+                    <span className="text-xs text-text-secondary">{remaining} remaining</span>
+                  </div>
+                  <div className="text-2xl font-bold text-primary">
+                    {currentPrice} <span className="text-sm text-text-secondary">ALGO</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-primary">Quantity</label>
+                  <input
+                    type="number"
+                    value={bidAmount}
+                    onChange={(e) => setBidAmount(e.target.value)}
+                    placeholder="Enter quantity"
+                    className="w-full px-4 py-3 text-lg border border-white/20 rounded-lg bg-glass backdrop-blur-sm text-text-primary placeholder-text-secondary focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    disabled={isSubmitting}
+                    min="1"
+                    max={remaining}
+                    autoFocus
+                  />
+                  <div className="flex items-center justify-between text-xs text-text-secondary">
+                    <span>Max: {remaining}</span>
+                    <span>Total: <span className="font-semibold text-primary">{totalCost.toFixed(2)} ALGO</span></span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-info/10 border border-info/20">
+                  <p className="text-xs text-info leading-relaxed">
+                    Your wallet will be connected automatically if not already connected.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 p-6 pt-4 border-t border-white/10">
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={onSubmit}
+                  disabled={!bidAmount || Number(bidAmount) <= 0 || remaining === 0 || isSubmitting}
+                  isLoading={isSubmitting}
+                  className="flex-1"
+                >
+                  {isSubmitting ? 'Placing Bid...' : 'Place Bid'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
